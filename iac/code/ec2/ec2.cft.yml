@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  The EC2 Instance Cloudformation template.
+
+Parameters:
+  Env:
+    Description: The environment of the infrastructure
+    Type: String
+    Default: DEV
+
+  SharedInfraStackName:
+    Description: The Shared Infrastructure Stack
+    Type: String
+    Default: SHARED-INFRA-STACK
+
+  InstanceType:
+    Type: "AWS::SSM::Parameter::Value<String>"
+    Default: "/cft/config/DEV/instance-type/us-east-1/default"
+
+  # obtain list with
+  # aws ssm get-parameters-by-path --path /aws/service/ami-amazon-linux-latest  --query 'Parameters[].Name'
+  AMI:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+
+Resources:
+
+  DemoEc2Instance:
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: !Ref AMI
+      InstanceType: !Ref InstanceType
+      SubnetId:
+        Fn::Select:
+          - 0
+          - Fn::Split: 
+              - ","
+              - Fn::ImportValue: 
+                  Fn::Sub: "${SharedInfraStackName}-PrivateSubnets"
+      BlockDeviceMappings: 
+      - DeviceName: "/dev/sdm"
+        Ebs: 
+          VolumeType: "io1"
+          Iops: "200"
+          DeleteOnTermination: "false"
+          VolumeSize: "20"
+      - DeviceName: "/dev/sdk"
+        NoDevice: {}

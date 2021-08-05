@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: > 
+  The Shared Security Group Cloudformation template.
+
+Parameters:
+  LogGroupName:
+    Type: String
+
+Resources:
+
+  APILogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Ref LogGroupName
+      RetentionInDays: 30
+
+Outputs:
+  APILogGroupArn:
+    Description: The AWS API Gateway LogGroup
+    Value: !GetAtt "APILogGroup.Arn"
+    Export:
+      Name: !Sub "${AWS::StackName}-APILogGroupArn"

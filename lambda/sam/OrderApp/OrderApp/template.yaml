@@ -1,0 +1,195 @@
+# The declaration Transform: AWS::Serverless-2016-10-31 is required for AWS SAM template files. 
+# This declaration identifies an AWS CloudFormation template file as an AWS SAM template file
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  OrderApp
+  Order Processing Application
+
+Parameters:
+  Stage:
+    Type: String
+    Default: "DEV"
+  
+# The Globals section is unique to AWS SAM. It defines properties that are common to all your serverless 
+# functions and APIs. All the AWS::Serverless::Function, AWS::Serverless::Api, 
+# and AWS::Serverless::SimpleTable resources inherit the properties that are defined in the Globals section
+Globals:
+  Function:
+    Timeout: 300
+
+# In AWS SAM templates the Resources section can contain a combination of AWS CloudFormation 
+# resources and AWS SAM resources
+Resources:
+
+  OrderAPILogGroupStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://shared-infra-reusable-cft-sam.s3.amazonaws.com/shared-infra-order-app.yaml
+      Parameters:
+        LogGroupName: !Sub "/aws/apigateway/AccessLog-OrderAPI-${Stage}-LogGroup"
+
+  # ApiGatewayPushToCloudWatchRole:
+  #   Type: AWS::IAM:Role
+  #   DeletionPolicy: Retain
+  #   Properties:
+  #     Description: Push logs to CloudWatch logs from API Gateway
+  #     AssumeRolePolicyDocument:
+  #       Version: "2012-10-17"
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             Service:
+  #               - "apigateway.amazonaws.com"
+  #           Action: "sts:AssumeRole"
+  #     ManagedPolicyArns:
+  #       - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+  
+  # ApiAccount:
+  #   Type: "AWS::ApiGateway::Account"
+  #   DeletionPolicy: Retain
+  #   Properties:
+  #     CloudWatchRoleArn: !GetAtt ApiGatewayPushToCloudWatchRole.Arn
+
+  OrderAPI:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: Order App Api
+      StageName: !Ref Stage
+      # AccessLogSetting:
+      #   DestinationArn: !GetAtt OrderAPILogGroupStack.Outputs.APILogGroupArn
+      #   Format: "{\"requestId\":\"$context.requestId\",\"ip\":\"$context.identity.sourceIp\",\"caller\":\"$context.identity.caller\",\"user\":\"$context.identity.user\",\"requestTime\":\"$context.requestTime\",\"httpMethod\":\"$context.httpMethod\",\"resourcePath\":\"$context.resourcePath\",\"status\":\"$context.status\",\"protocol\":\"$context.protocol\",\"responseLength\":\"$context.responseLength\"}"
+      CacheClusterEnabled: true
+      CacheClusterSize: "0.5"
+      CanarySetting: 
+        PercentTraffic: 10
+      Tags:
+        Name:  Order App ApiGateway
+
+  OrderReceiptStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: order-receipt-orchestrator/order_receipt_orchestrator.asl.json
+      Role: !ImportValue  "OrderOrchestratorRoleArn"
+      Tracing:
+        Enabled: true
+      DefinitionSubstitutions:
+        REGION: !Ref AWS::Region
+        ACCOUNT: !Ref AWS::AccountId
+        GENERATE_RECEIPT_FUNCTION: !GetAtt GenerateOrderReceiptFunction.Arn
+        POST_RECEIPT_FUNCTION: !GetAtt GetOrderReceiptCallbackFunction.Arn
+      
+  GetOrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Events:
+        GetOrder:
+          Type: Api
+          Properties:
+            Path: /orders
+            Method: get
+            RestApiId: !Ref OrderAPI
+    Metadata:
+      DockerTag: nodejs12.x-v1
+      DockerContext: ./getorder
+      Dockerfile: Dockerfile
+
+  GetOrderReceiptFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Environment:
+        Variables:
+          EXECUTION_ARN: !GetAtt OrderReceiptStateMachine.Arn
+      Policies:
+        - Statement: 
+          - Sid: StepFunctionExecutionToken
+            Effect: 'Allow'
+            Action: 
+              - "states:StartExecution"
+            Resource: !GetAtt OrderReceiptStateMachine.Arn
+      Events:
+        GetOrder:
+          Type: Api
+          Properties:
+            Path: /orders/{id}/receipt
+            Method: get
+            RestApiId: !Ref OrderAPI
+    Metadata:
+      DockerTag: nodejs12.x-v1
+      DockerContext: ./getorderreceipt
+      Dockerfile: Dockerfile
+
+  GenerateOrderReceiptFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+    Metadata:
+      DockerTag: nodejs12.x-v1
+      DockerContext: ./generateorderreceipt
+      Dockerfile: Dockerfile
+
+  GetOrderReceiptCallbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Policies:
+        - Statement: 
+          - Sid: ApiGatewayGetConnection
+            Effect: 'Allow'
+            Action: 
+              - "apigateway:*"
+            Resource: '*'
+          - Sid: ApiGatewayPostToConnection
+            Effect: 'Allow'
+            Action: 
+              - "execute-api:ManageConnections"
+            Resource: '*'
+          - Sid: DynamoDBGet
+            Effect: 'Allow'
+            Action: 
+              - "dynamodb:*"
+            Resource: '*'
+    Metadata:
+      DockerTag: nodejs12.x-v1
+      DockerContext: ./getorderreceiptcallback
+      Dockerfile: Dockerfile
+
+  RegisterReceiptFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Policies:
+        - Statement: 
+          - Sid: ApiGatewayPostToConnection
+            Effect: 'Allow'
+            Action: 
+              - "apigateway:*"
+            Resource: '*'
+          - Sid: DynamoDBGet
+            Effect: 'Allow'
+            Action: 
+              - "dynamodb:*"
+            Resource: '*'
+    Metadata:
+      DockerTag: nodejs12.x-v1
+      DockerContext: ./registerorderreceipt
+      Dockerfile: Dockerfile
+  
+Outputs:
+  GetOrderApi:
+    Description: "API Gateway endpoint URL for GetOrder function"
+    Value: !Sub "https://${OrderAPI}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/order/"
+  GetOrderFunction:
+    Description: "Get Order Lambda Function ARN"
+    Value: !GetAtt GetOrderFunction.Arn
+  GetOrderFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt GetOrderFunctionRole.Arn
+  GetOrderReceiptFunction:
+    Description: "Get Order Lambda Function ARN"
+    Value: !GetAtt GetOrderReceiptFunction.Arn
+  GetOrderReceiptFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt GetOrderReceiptFunctionRole.Arn

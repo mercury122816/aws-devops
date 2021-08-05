@@ -1,0 +1,36 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: > 
+  The Shared Security Group Cloudformation template.
+
+Parameters:
+  Env:
+    Description: The environment of the infrastructure
+    Type: String
+    Default: DEV
+
+Mappings:
+  Enviroment:
+    PlatformName: 
+      DEV: "dev"
+      TEST: "test"
+      SIT: "sit"
+      PROD: "prod"
+
+Resources:
+
+  EnvS3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties: 
+      BucketName: !Sub
+        - common-s3-bucket-${EnvType}
+        - EnvType: 
+            Fn::FindInMap:
+              - Enviroment
+              - PlatformName
+              - !Ref Env
+
+Outputs:
+  EnvS3Bucket:
+    Description: "Standard S3 bucket"
+    Value: !Ref EnvS3Bucket

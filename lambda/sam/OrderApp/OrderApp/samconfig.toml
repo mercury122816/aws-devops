@@ -1,0 +1,24 @@
+version = 0.1
+[DEV]
+[DEV.deploy]
+[DEV.deploy.parameters]
+stack_name = "order-service-v2"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-no9vadhofoha"
+s3_prefix = "order-service-v2"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Stage=\"DEV\""
+image_repositories = ["GetOrderFunction=803138993991.dkr.ecr.us-east-1.amazonaws.com/getorder"]
+
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "order-service-v1"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-no9vadhofoha"
+s3_prefix = "order-service-v1"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Stage=\"DEV\""
+image_repositories = ["GetOrderFunction=803138993991.dkr.ecr.us-east-1.amazonaws.com/getorder", "GetOrderReceiptFunction=803138993991.dkr.ecr.us-east-1.amazonaws.com/getorderreceipt", "GenerateOrderReceiptFunction=803138993991.dkr.ecr.us-east-1.amazonaws.com/generateorderreceipt", "GetOrderReceiptCallbackFunction=803138993991.dkr.ecr.us-east-1.amazonaws.com/getorderreceiptcallback", "RegisterReceiptFunction=803138993991.dkr.ecr.us-east-1.amazonaws.com/registerorderreceipt"]

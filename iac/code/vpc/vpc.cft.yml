@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: > 
+  The primary VPC Cloudformation template.
+
+Parameters:
+  Env:
+    Description: The environment of the infrastructure
+    Type: String
+    Default: DEV
+
+Resources:
+
+  SharedInfraS3:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://shared-infra-nestedstacks-samawsdevops.s3.amazonaws.com/common-s3.cft.yml
+      Parameters:
+        Env: !Ref Env
+  
+  MainVPC:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags: 
+        - Key: "Name"
+          Value: "Primary VPC"
+        - Key: "Author"
+          Value: "Samriddha Chatterjee"
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select 
+        - 0 
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      CidrBlock: 10.0.1.0/24
+      Tags: 
+        - Key: "Name"
+          Value: "PrivateSubnetA"
+        - Key: "Author"
+          Value: "Samriddha Chatterjee"
+      VpcId: !Ref MainVPC
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select 
+        - 1 
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      CidrBlock: 10.0.2.0/24
+      Tags: 
+        - Key: "Name"
+          Value: "PrivateSubnetB"
+        - Key: "Author"
+          Value: "Samriddha Chatterjee"
+      VpcId: !Ref MainVPC
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select 
+        - 0 
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      CidrBlock: 10.0.3.0/24
+      Tags: 
+        - Key: "Name"
+          Value: "PublicSubnetA"
+        - Key: "Author"
+          Value: "Samriddha Chatterjee"
+      VpcId: !Ref MainVPC
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select 
+        - 1 
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      CidrBlock: 10.0.4.0/24
+      Tags: 
+        - Key: "Name"
+          Value: "PublicSubnetB"
+        - Key: "Author"
+          Value: "Samriddha Chatterjee"
+      VpcId: !Ref MainVPC
+
+  MainInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties: 
+      Tags: 
+        - Key: "Name"
+          Value: "MainInternetGateway"
+        - Key: "Author"
+          Value: "Samriddha Chatterjee"
+
+  MainVPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: 
+      InternetGatewayId: !Ref MainInternetGateway
+      VpcId: !Ref MainVPC
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      Tags: 
+        - Key: "Name"
+          Value: "PublicRouteTable"
+        - Key: "Author"
+          Value: "Samriddha Chatterjee"
+      VpcId: !Ref MainVPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: MainVPCGatewayAttachment
+    Properties:
+       RouteTableId: !Ref PublicRouteTable
+       DestinationCidrBlock: 0.0.0.0/0
+       GatewayId: !Ref MainInternetGateway
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      Tags: 
+        - Key: "Name"
+          Value: "PrivateRouteTable"
+        - Key: "Author"
+          Value: "Samriddha Chatterjee"
+      VpcId: !Ref MainVPC
+  
+  PriavteSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnetA
+
+  PriavteSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnetB
+
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetA
+
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetB
+
+Outputs:
+  MainVPCId: 
+    Description: "The Main VPC Id"
+    Value: !Ref MainVPC
+    Export: 
+      Name: !Sub "${AWS::StackName}-VPCID"
+
+  PrivateSubnets:
+    Description: "List of Private Subnets"
+    Value: !Join [ ",", [!Ref "PrivateSubnetA", !Ref "PrivateSubnetB"]]
+    Export: 
+      Name: !Sub "${AWS::StackName}-PrivateSubnets"
+
+  PublicSubnets:
+    Description: "List of Public Subnets"
+    Value: !Join [ ",", [!Ref "PublicSubnetA", !Ref "PublicSubnetB"]]
+    Export: 
+      Name: !Sub "${AWS::StackName}-PublicSubnets"

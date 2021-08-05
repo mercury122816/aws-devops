@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  The primary VPC Cloudformation template.
+
+Resources:
+  LambdaS3ExecutionRole: 
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: 's3:*'
+                Resource: '*'
+              - Effect: Allow
+                Action: 
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+
+Outputs:
+
+  LambdaS3ExecutionRoleArn:
+    Description: The ARN of the Lambda Execution Role
+    Value: 
+      Fn::GetAtt: 
+        - LambdaS3ExecutionRole 
+        - "Arn"
+    Export:
+      Name: "LambdaS3ExecutionRoleArn"

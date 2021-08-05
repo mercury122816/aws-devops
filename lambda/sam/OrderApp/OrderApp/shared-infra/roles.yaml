@@ -1,0 +1,36 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: > 
+  The Shared Security Group Cloudformation template.
+
+Parameters:
+  Stage:
+    Type: String
+    Default: "DEV"
+
+Resources:
+  OrderOrchestratorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: StepFunction to Lambda invocation
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "states.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Path: /
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: 'lambda:InvokeFunction'
+                Resource: '*'
+Outputs:
+  OrderOrchestratorRoleArn:
+    Value: !GetAtt OrderOrchestratorRole.Arn
+    Export:
+      Name: OrderOrchestratorRoleArn
