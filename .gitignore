@@ -1,3 +1,5 @@
+aws-lab.ppk
+admin_codecommit_credentials.csv
 # Logs
 logs
 *.log

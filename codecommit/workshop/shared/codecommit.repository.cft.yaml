@@ -1,0 +1,19 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  The primary VPC Cloudformation template.
+
+Resources:
+
+  OrderServiceRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: OrderService
+      RepositoryDescription: This is a repository for OrderService.
+
+Outputs:
+  OrderServiceRepositoryUrl:
+    Description: The Repository URL for Order Service Application.
+    Value: !GetAtt "OrderServiceRepository.CloneUrlHttp"
+    Export:
+      Name: OrderServiceRepositoryUrl
+  
