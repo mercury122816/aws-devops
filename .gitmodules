@@ -1,0 +1,3 @@
+[submodule "experimental-ec2-express-app"]
+	path = experimental-ec2-express-app
+	url = https://github.com/samriddhac/experimental-ec2-express-app.git
