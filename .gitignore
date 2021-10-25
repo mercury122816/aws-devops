@@ -1,4 +1,5 @@
 aws-lab.ppk
+*.pem
 admin_codecommit_credentials.csv
 # Logs
 logs
