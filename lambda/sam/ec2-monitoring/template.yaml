@@ -28,7 +28,7 @@ Resources:
         CWSchedule:
           Type: Schedule
           Properties:
-            Schedule: 'rate(6 hour)'
+            Schedule: 'rate(6 hours)'
             Name: EC2EventBridgeSchedule
             Description: EC2 monitoring schedule
             Enabled: true
