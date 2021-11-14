@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  ec2-monitoring
+  SAM Template for ec2-monitoring
+  
+Globals:
+  Function:
+    Timeout: 300
+
+Resources:
+  EC2MonitoringFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.lambdaHandler
+      Runtime: nodejs14.x
+      Architectures:
+        - x86_64
+      Policies:
+        - Statement: 
+          - Sid: EC2MonitoringFunction
+            Effect: 'Allow'
+            Action: 
+              - "ec2:*"
+            Resource: "*"
+      Events:
+        CWSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: 'rate(6 hours)'
+            Name: EC2EventBridgeSchedule
+            Description: EC2 monitoring schedule
+            Enabled: true
+
+
+Outputs:
+  EC2MonitoringFunction:
+    Description: "EC2MonitoringFunction Lambda Function ARN"
+    Value: !GetAtt EC2MonitoringFunction.Arn
